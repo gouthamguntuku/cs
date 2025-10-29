@@ -2847,14 +2847,56 @@ Docker Container:
 - **Volume:** Persistent data storage
 - **Network:** Container communication
 
-### 7.2 Installing Docker
+# DevOps Zero to Hero: Docker to Advanced Topics
+
+## Complete guide from Docker fundamentals through Kubernetes, CI/CD, and beyond
+
+---
+
+## 7. Containerization with Docker
+
+### 7.1 Docker Introduction
+
+**What is Docker?**
+Docker is a platform that uses containerization to package applications with all their dependencies, ensuring consistent behavior across different environments.
+
+**Key Benefits:**
+```
+Problem Without Docker:
+"It works on my machine!" 
+- Different OS versions
+- Missing dependencies
+- Configuration differences
+- Environment inconsistencies
+
+Solution With Docker:
+"It works in my container!"
+- Consistent environment
+- All dependencies included
+- Portable across systems
+- Isolated from host
+```
+
+**Docker Architecture:**
+```
+Docker Client (CLI)
+    ↓
+Docker Daemon (dockerd)
+    ↓
+├── Images (Read-only templates)
+├── Containers (Running instances)
+├── Networks (Container connectivity)
+└── Volumes (Persistent data)
+```
+
+### 7.2 Docker Installation
 
 ```bash
 # Ubuntu/Debian
 sudo apt update
 sudo apt install -y apt-transport-https ca-certificates curl software-properties-common
 
-# Add Docker's official GPG key
+# Add Docker's GPG key
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
 
 # Add Docker repository
@@ -2864,201 +2906,1093 @@ sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubun
 sudo apt update
 sudo apt install -y docker-ce docker-ce-cli containerd.io
 
-# Start Docker service
+# Start and enable Docker
 sudo systemctl start docker
 sudo systemctl enable docker
 
 # Add current user to docker group (avoid using sudo)
 sudo usermod -aG docker $USER
 
-# Log out and back in for group changes to take effect
-# Verify installation
+# Log out and back in, then verify
 docker --version
 docker run hello-world
-```
 
-**Docker Compose Installation:**
-```bash
-# Download Docker Compose
+# Install Docker Compose
 sudo curl -L "https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-
-# Make executable
 sudo chmod +x /usr/local/bin/docker-compose
-
-# Verify
 docker-compose --version
 ```
 
 ### 7.3 Docker Basics
 
+**Essential Docker Commands:**
 ```bash
-# Pull an image from Docker Hub
-docker pull nginx                    # Pull latest nginx image
-docker pull nginx:1.21              # Pull specific version
+# IMAGES
+# Pull image from Docker Hub
+docker pull nginx                    # Latest version
+docker pull nginx:1.21              # Specific version
+docker pull postgres:14-alpine      # Alpine variant (smaller)
 
-# List downloaded images
-docker images                        # Show all images on system
+# List images
+docker images                        # All images
+docker images nginx                  # Specific image
 
-# Run a container
-docker run nginx                     # Run nginx (foreground, blocks terminal)
-docker run -d nginx                  # Run in detached mode (background)
-docker run -d --name my-nginx nginx  # Run with custom name
-docker run -d -p 8080:80 nginx      # Map port 8080 (host) to 80 (container)
+# Remove image
+docker rmi nginx                     # Remove by name
+docker rmi abc123                    # Remove by ID
+docker rmi $(docker images -q)      # Remove all images
 
-# List running containers
-docker ps                            # Show running containers
-docker ps -a                         # Show all containers (including stopped)
+# Build image
+docker build -t myapp:1.0 .         # Build from Dockerfile
+docker build -t myapp:1.0 -f Dockerfile.prod .  # Specific Dockerfile
 
-# Stop a container
-docker stop my-nginx                 # Graceful stop (sends SIGTERM)
-docker stop container_id             # Stop by ID
+# Tag image
+docker tag myapp:1.0 myapp:latest
+docker tag myapp:1.0 myregistry.com/myapp:1.0
 
-# Start a stopped container
-docker start my-nginx
+# Push image
+docker push myregistry.com/myapp:1.0
 
-# Restart a container
-docker restart my-nginx
+# Save/Load images (for offline transfer)
+docker save myapp:1.0 > myapp.tar
+docker load < myapp.tar
 
-# Remove a container
+# CONTAINERS
+# Run container
+docker run nginx                     # Run in foreground
+docker run -d nginx                  # Run detached (background)
+docker run -d --name my-nginx nginx  # With custom name
+docker run -d -p 8080:80 nginx      # Map port 8080→80
+docker run -d -p 127.0.0.1:8080:80 nginx  # Bind to localhost only
+
+# Run with environment variables
+docker run -d \
+  -e DATABASE_URL=postgres://db:5432/myapp \
+  -e NODE_ENV=production \
+  myapp:1.0
+
+# Run with volume mount
+docker run -d \
+  -v /host/path:/container/path \
+  -v mydata:/data \
+  myapp:1.0
+
+# Run with resource limits
+docker run -d \
+  --memory="512m" \
+  --cpus="1.0" \
+  myapp:1.0
+
+# Run with auto-restart
+docker run -d --restart unless-stopped nginx
+docker run -d --restart on-failure:5 nginx  # Restart up to 5 times
+
+# List containers
+docker ps                            # Running containers
+docker ps -a                         # All containers (including stopped)
+docker ps -q                         # Only container IDs
+
+# Container operations
+docker start my-nginx                # Start stopped container
+docker stop my-nginx                 # Stop gracefully (SIGTERM)
+docker kill my-nginx                 # Force stop (SIGKILL)
+docker restart my-nginx              # Restart container
+docker pause my-nginx                # Pause processes
+docker unpause my-nginx              # Resume processes
+
+# Remove containers
 docker rm my-nginx                   # Remove stopped container
-docker rm -f my-nginx                # Force remove (stops and removes)
+docker rm -f my-nginx                # Force remove running container
+docker rm $(docker ps -aq)          # Remove all containers
 
-# Remove an image
-docker rmi nginx                     # Remove image (no containers using it)
-docker rmi -f nginx                  # Force remove
-
-# View container logs
-docker logs my-nginx                 # View all logs
-docker logs -f my-nginx              # Follow logs (like tail -f)
+# Container information
+docker logs my-nginx                 # View logs
+docker logs -f my-nginx              # Follow logs (tail -f)
 docker logs --tail 100 my-nginx      # Last 100 lines
+docker logs --since 30m my-nginx     # Last 30 minutes
 
-# Execute command in running container
-docker exec my-nginx ls /etc         # Run command in container
-docker exec -it my-nginx /bin/bash   # Interactive shell in container
+docker inspect my-nginx              # Full JSON details
+docker inspect my-nginx | grep IPAddress  # Get IP address
 
-# View container details
-docker inspect my-nginx              # Full JSON output with all details
-docker inspect my-nginx | grep IPAddress  # Get container IP
+docker stats                         # Resource usage (all containers)
+docker stats my-nginx                # Specific container
 
-# View container stats
-docker stats                         # Real-time resource usage
-docker stats my-nginx                # Stats for specific container
+docker top my-nginx                  # Running processes
+
+# Execute commands in container
+docker exec my-nginx ls /etc         # Run command
+docker exec -it my-nginx /bin/bash   # Interactive shell
+docker exec -u root my-nginx whoami  # Run as specific user
 
 # Copy files to/from container
-docker cp myfile.txt my-nginx:/tmp/  # Copy to container
-docker cp my-nginx:/tmp/myfile.txt . # Copy from container
+docker cp myfile.txt my-nginx:/tmp/
+docker cp my-nginx:/var/log/app.log ./
+
+# CLEANUP
+docker system df                     # Show disk usage
+docker system prune                  # Remove unused data
+docker system prune -a               # Remove all unused images
+docker system prune -a --volumes     # Remove everything unused
+
+docker container prune               # Remove stopped containers
+docker image prune                   # Remove dangling images
+docker volume prune                  # Remove unused volumes
+docker network prune                 # Remove unused networks
 ```
 
-**Real-World Example: Running a Web Application**
+**Real-World Example: Running Web Application**
 ```bash
-# Run nginx web server with custom content
-# Create index.html
-cat > index.html << 'EOF'
-<!DOCTYPE html>
-<html>
-<head><title>My Docker App</title></head>
-<body>
-    <h1>Hello from Docker!</h1>
-    <p>This page is served by nginx running in a Docker container.</p>
-</body>
-</html>
-EOF
+#!/bin/bash
+# run-webapp.sh - Launch complete web application stack
 
-# Run nginx and mount custom html
+# Create custom network
+docker network create webapp-network
+
+# Run PostgreSQL database
 docker run -d \
-    --name my-website \
-    -p 8080:80 \
-    -v $(pwd)/index.html:/usr/share/nginx/html/index.html:ro \
-    nginx
+  --name postgres-db \
+  --network webapp-network \
+  -e POSTGRES_DB=myapp \
+  -e POSTGRES_USER=appuser \
+  -e POSTGRES_PASSWORD=secretpass \
+  -v postgres-data:/var/lib/postgresql/data \
+  postgres:14
 
-# Visit http://localhost:8080 in browser
-echo "Website available at: http://localhost:8080"
+# Wait for database to be ready
+echo "Waiting for database to be ready..."
+sleep 10
 
-# View logs
-docker logs -f my-website
+# Run Redis cache
+docker run -d \
+  --name redis-cache \
+  --network webapp-network \
+  redis:7-alpine
 
-# Stop and remove
-docker stop my-website
-docker rm my-website
+# Run backend API
+docker run -d \
+  --name backend-api \
+  --network webapp-network \
+  -e DATABASE_URL=postgresql://appuser:secretpass@postgres-db:5432/myapp \
+  -e REDIS_URL=redis://redis-cache:6379 \
+  -p 3000:3000 \
+  mycompany/backend:1.0
+
+# Run frontend
+docker run -d \
+  --name frontend-web \
+  --network webapp-network \
+  -e API_URL=http://backend-api:3000 \
+  -p 80:80 \
+  mycompany/frontend:1.0
+
+echo "Application deployed!"
+echo "Access: http://localhost"
+echo ""
+echo "Container status:"
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 ```
 
 ### 7.4 Creating Docker Images (Dockerfiles)
 
-**Dockerfile Basics:**
+**Dockerfile Anatomy:**
 ```dockerfile
-# Dockerfile - instructions to build an image
+# Dockerfile - Complete guide to all instructions
 
-# FROM: Base image to start from
-FROM ubuntu:22.04
+# FROM: Base image (REQUIRED - must be first instruction)
+FROM node:16-alpine
+# Use specific versions, not 'latest'
+# Alpine variants are smaller (5-10x smaller than regular)
 
 # LABEL: Metadata about the image
 LABEL maintainer="devops@example.com"
 LABEL version="1.0"
-LABEL description="My custom Docker image"
+LABEL description="My Node.js application"
 
-# RUN: Execute commands during build (creates layers)
-RUN apt-get update && apt-get install -y \
-    nginx \
-    curl \
-    vim \
-    && rm -rf /var/lib/apt/lists/*
+# ARG: Build-time variables (available only during build)
+ARG NODE_ENV=production
+ARG BUILD_DATE
+ARG VCS_REF
 
-# WORKDIR: Set working directory
-WORKDIR /app
+# ENV: Environment variables (available in running container)
+ENV NODE_ENV=${NODE_ENV}
+ENV PORT=3000
+ENV APP_HOME=/app
+
+# WORKDIR: Set working directory (creates if doesn't exist)
+WORKDIR ${APP_HOME}
+# All subsequent commands run from this directory
 
 # COPY: Copy files from host to image
-COPY index.html /var/www/html/
-COPY app.py /app/
+COPY package*.json ./
+# Syntax: COPY <src> <dest>
+# Preserves metadata
 
-# ADD: Like COPY but can also extract archives and download URLs
-ADD application.tar.gz /app/
+# ADD: Like COPY but can also:
+# - Extract tar archives
+# - Download from URLs (not recommended, use RUN + curl instead)
+ADD https://example.com/file.tar.gz /tmp/
+# Prefer COPY over ADD for simple file copying
 
-# ENV: Set environment variables
-ENV APP_ENV=production
-ENV PORT=8080
+# RUN: Execute commands during build (creates new layer)
+RUN npm ci --only=production
+# Each RUN creates a new layer, so combine related commands:
+RUN apt-get update && \
+    apt-get install -y curl vim && \
+    rm -rf /var/lib/apt/lists/*
+# Clean up in same layer to reduce image size
 
-# EXPOSE: Document which ports the container listens on
-EXPOSE 80
-EXPOSE 8080
+# USER: Set user for subsequent commands
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+USER nodejs
+# Security best practice: run as non-root
 
-# USER: Switch to non-root user (security best practice)
-RUN useradd -m appuser
-USER appuser
+# EXPOSE: Document which port the container listens on
+EXPOSE ${PORT}
+# This is documentation only, doesn't actually publish the port
 
-# CMD: Default command to run when container starts
-# Only one CMD per Dockerfile (last one wins)
-CMD ["nginx", "-g", "daemon off;"]
-
-# ENTRYPOINT: Configure container to run as executable
-# ENTRYPOINT ["python", "app.py"]
-
-# VOLUME: Create mount point for persistent data
-VOLUME ["/data"]
+# VOLUME: Create mount point for external volumes
+VOLUME ["/data", "/logs"]
+# Data in these directories persists beyond container lifecycle
 
 # HEALTHCHECK: Check if container is healthy
-HEALTHCHECK --interval=30s --timeout=3s \
-    CMD curl -f http://localhost/ || exit 1
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+  CMD node healthcheck.js || exit 1
+# Docker will mark container as unhealthy if check fails
+
+# CMD: Default command to run (can be overridden)
+CMD ["node", "server.js"]
+# Only one CMD per Dockerfile (last one wins)
+# Shell form: CMD node server.js
+# Exec form (preferred): CMD ["node", "server.js"]
+
+# ENTRYPOINT: Configure container to run as executable
+ENTRYPOINT ["docker-entrypoint.sh"]
+# Difference: CMD can be overridden, ENTRYPOINT cannot
+# Often used together:
+# ENTRYPOINT ["npm"]
+# CMD ["start"]
+
+# ONBUILD: Trigger instruction when image is used as base
+ONBUILD COPY . /app
+# Useful for creating base images
+
+# STOPSIGNAL: Signal to stop container
+STOPSIGNAL SIGTERM
+
+# SHELL: Override default shell
+SHELL ["/bin/bash", "-c"]
 ```
 
-**Example 1: Python Web Application**
+**Example 1: Node.js Application**
 ```dockerfile
-# Dockerfile for Flask application
-FROM python:3.9-slim
+# Dockerfile - Production-ready Node.js application
 
-# Set working directory
+# Stage 1: Dependencies
+FROM node:16-alpine AS dependencies
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Stage 2: Build
+FROM node:16-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+# Stage 3: Production
+FROM node:16-alpine AS production
+
+# Install dumb-init for proper signal handling
+RUN apk add --no-cache dumb-init
+
+# Create app directory
 WORKDIR /app
 
-# Copy requirements first (for layer caching)
-COPY requirements.txt .
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
 
-# Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy dependencies from dependencies stage
+COPY --from=dependencies --chown=nodejs:nodejs /app/node_modules ./node_modules
+
+# Copy built application from builder stage
+COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
+COPY --chown=nodejs:nodejs package*.json ./
+
+# Switch to non-root user
+USER nodejs
+
+# Expose port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s \
+  CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["dumb-init", "--"]
+
+# Start application
+CMD ["node", "dist/server.js"]
+```
+
+**Example 2: Python Flask Application**
+```dockerfile
+# Dockerfile - Python Flask application
+
+# Stage 1: Builder
+FROM python:3.9-slim AS builder
+
+WORKDIR /app
+
+# Install build dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gcc && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install
+COPY requirements.txt .
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.txt
+
+# Stage 2: Production
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Install runtime dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy wheels from builder
+COPY --from=builder /app/wheels /wheels
+COPY --from=builder /app/requirements.txt .
+
+# Install packages from wheels
+RUN pip install --no-cache /wheels/*
 
 # Copy application code
 COPY . .
 
 # Create non-root user
-RUN useradd -m appuser && chown -R appuser:appuser /app
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app
+
 USER appuser
 
-# Expose 
+# Expose port
+EXPOSE 5000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD curl -f http://localhost:5000/health || exit 1
+
+# Run application
+CMD ["python", "app.py"]
+```
+
+**Example 3: Go Application**
+```dockerfile
+# Dockerfile - Go application with minimal final image
+
+# Stage 1: Build
+FROM golang:1.20-alpine AS builder
+
+WORKDIR /app
+
+# Copy go mod files
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build binary
+# CGO_ENABLED=0 for static binary
+# -ldflags "-s -w" to strip debug info and reduce size
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags "-s -w" -o myapp .
+
+# Stage 2: Minimal runtime
+FROM scratch
+
+# Copy CA certificates for HTTPS
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+# Copy binary from builder
+COPY --from=builder /app/myapp /myapp
+
+# Expose port
+EXPOSE 8080
+
+# Run binary
+ENTRYPOINT ["/myapp"]
+```
+
+**Building and Running:**
+```bash
+# Build image
+docker build -t myapp:1.0 .
+
+# Build with build arguments
+docker build \
+  --build-arg NODE_ENV=production \
+  --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+  --build-arg VCS_REF=$(git rev-parse --short HEAD) \
+  -t myapp:1.0 .
+
+# Build without cache
+docker build --no-cache -t myapp:1.0 .
+
+# Build with specific Dockerfile
+docker build -f Dockerfile.prod -t myapp:1.0 .
+
+# View build history (layers)
+docker history myapp:1.0
+
+# Run built image
+docker run -d -p 3000:3000 --name myapp-container myapp:1.0
+
+# Test application
+curl http://localhost:3000
+
+# View logs
+docker logs -f myapp-container
+```
+
+### 7.5 .dockerignore File
+
+```
+# .dockerignore - Exclude files from build context
+
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Dependencies
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Python
+__pycache__
+*.py[cod]
+*.so
+.Python
+venv/
+env/
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Documentation
+README.md
+CHANGELOG.md
+*.md
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+
+# Testing
+coverage/
+.nyc_output/
+test/
+*.test.js
+
+# Logs
+logs/
+*.log
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Build artifacts
+dist/
+build/
+*.tar.gz
+
+# Temporary files
+tmp/
+temp/
+```
+
+### 7.6 Docker Volumes
+
+**Volume Types:**
+```bash
+# 1. NAMED VOLUMES (Managed by Docker - Recommended)
+# Create volume
+docker volume create mydata
+
+# List volumes
+docker volume ls
+
+# Inspect volume
+docker volume inspect mydata
+# Shows: Mountpoint, Driver, Labels, etc.
+
+# Run container with named volume
+docker run -d \
+  --name postgres \
+  -v mydata:/var/lib/postgresql/data \
+  postgres:14
+
+# Data persists even after container deletion
+docker stop postgres
+docker rm postgres
+# Volume 'mydata' still exists with all data
+
+# Run new container with same volume
+docker run -d \
+  --name postgres-new \
+  -v mydata:/var/lib/postgresql/data \
+  postgres:14
+
+# Remove volume
+docker volume rm mydata
+
+# Remove all unused volumes
+docker volume prune
+
+
+# 2. BIND MOUNTS (Direct host path mapping)
+# Mount host directory
+docker run -d \
+  -v /host/path:/container/path \
+  -v $(pwd)/config:/etc/app/config \
+  myapp:1.0
+
+# Read-only bind mount
+docker run -d \
+  -v $(pwd)/html:/usr/share/nginx/html:ro \
+  nginx
+
+# Bind mount with specific options
+docker run -d \
+  -v $(pwd)/data:/data:rw,Z \
+  myapp:1.0
+# Options: ro (read-only), rw (read-write), Z (SELinux label)
+
+
+# 3. TMPFS (In-memory, temporary)
+# Mount tmpfs (useful for sensitive temporary data)
+docker run -d \
+  --tmpfs /tmp \
+  --tmpfs /run:rw,noexec,nosuid,size=64m \
+  myapp:1.0
+```
+
+**Backup and Restore Volumes:**
+```bash
+#!/bin/bash
+# backup-volume.sh - Backup Docker volume
+
+VOLUME_NAME="mydata"
+BACKUP_FILE="backup-$(date +%Y%m%d-%H%M%S).tar.gz"
+
+# Backup volume
+docker run --rm \
+  -v ${VOLUME_NAME}:/data \
+  -v $(pwd):/backup \
+  ubuntu \
+  tar czf /backup/${BACKUP_FILE} -C /data .
+
+echo "Backup created: ${BACKUP_FILE}"
+
+# Restore volume
+restore_volume() {
+    local volume=$1
+    local backup_file=$2
+    
+    # Create new volume
+    docker volume create ${volume}
+    
+    # Restore data
+    docker run --rm \
+      -v ${volume}:/data \
+      -v $(pwd):/backup \
+      ubuntu \
+      tar xzf /backup/${backup_file} -C /data
+    
+    echo "Volume ${volume} restored from ${backup_file}"
+}
+
+# Usage: restore_volume "newdata" "backup-20240101-120000.tar.gz"
+```
+
+**Volume Use Cases:**
+```bash
+# Database persistence
+docker run -d \
+  --name mysql \
+  -v mysql-data:/var/lib/mysql \
+  -e MYSQL_ROOT_PASSWORD=secret \
+  mysql:8.0
+
+# Application configuration
+docker run -d \
+  --name app \
+  -v app-config:/etc/app \
+  -v app-logs:/var/log/app \
+  myapp:1.0
+
+# Development with hot reload
+docker run -d \
+  --name dev-app \
+  -v $(pwd)/src:/app/src \
+  -v /app/node_modules \
+  -p 3000:3000 \
+  myapp:dev
+
+# Shared data between containers
+docker run -d --name producer -v shared-data:/data producer:1.0
+docker run -d --name consumer -v shared-data:/data:ro consumer:1.0
+```
+
+### 7.7 Docker Networking
+
+**Network Types:**
+```bash
+# 1. BRIDGE (Default)
+# Isolated network on host
+# Containers can communicate via IP or container name
+
+# List networks
+docker network ls
+
+# Create custom bridge network
+docker network create myapp-network
+
+# Inspect network
+docker network inspect myapp-network
+
+# Run containers on same network
+docker run -d --name backend --network myapp-network backend:1.0
+docker run -d --name frontend --network myapp-network frontend:1.0
+
+# Containers can reach each other by name:
+# frontend can access: http://backend:3000
+
+
+# 2. HOST
+# Container uses host's network directly (no isolation)
+docker run -d --network host nginx
+# Container binds directly to host's ports
+
+
+# 3. NONE
+# No networking
+docker run -d --network none alpine
+
+
+# 4. CUSTOM BRIDGE with specific subnet
+docker network create \
+  --driver bridge \
+  --subnet=172.18.0.0/16 \
+  --gateway=172.18.0.1 \
+  --opt "com.docker.network.bridge.name"="custom0" \
+  custom-network
+
+# Run container with specific IP
+docker run -d \
+  --network custom-network \
+  --ip 172.18.0.10 \
+  --name web \
+  nginx
+
+
+# Network operations
+# Connect container to network
+docker network connect myapp-network existing-container
+
+# Disconnect from network
+docker network disconnect myapp-network existing-container
+
+# Remove network
+docker network rm myapp-network
+
+# Clean up unused networks
+docker network prune
+```
+
+**Real-World Multi-Container Application:**
+```bash
+#!/bin/bash
+# deploy-stack.sh - Deploy multi-tier application
+
+# Create network
+docker network create --driver bridge app-network
+
+# Deploy database tier
+docker run -d \
+  --name postgres \
+  --network app-network \
+  --network-alias db \
+  -e POSTGRES_PASSWORD=secret \
+  -e POSTGRES_DB=myapp \
+  -v postgres-data:/var/lib/postgresql/data \
+  postgres:14
+
+# Deploy cache tier
+docker run -d \
+  --name redis \
+  --network app-network \
+  --network-alias cache \
+  redis:7-alpine
+
+# Deploy backend tier
+docker run -d \
+  --name backend \
+  --network app-network \
+  -e DATABASE_URL=postgresql://postgres:secret@db:5432/myapp \
+  -e REDIS_URL=redis://cache:6379 \
+  backend:1.0
+
+# Deploy frontend tier
+docker run -d \
+  --name frontend \
+  --network app-network \
+  -p 80:80 \
+  -e API_URL=http://backend:3000 \
+  frontend:1.0
+
+echo "Application deployed on http://localhost"
+
+# Test connectivity
+docker exec frontend ping -c 3 backend
+docker exec backend ping -c 3 db
+```
+
+### 7.8 Docker Compose
+
+**What is Docker Compose?**
+Multi-container application definition and management tool using YAML configuration.
+
+**Basic docker-compose.yml:**
+```yaml
+version: '3.8'
+
+services:
+  # Database
+  postgres:
+    image: postgres:14-alpine
+    container_name: app-database
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: myapp
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Cache
+  redis:
+    image: redis:7-alpine
+    container_name: app-cache
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - backend
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: app-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://appuser:${DB_PASSWORD}@postgres:5432/myapp
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./backend/uploads:/app/uploads
+    ports:
+      - "3000:3000"
+    networks:
+      - backend
+      - frontend
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: app-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      - REACT_APP_API_URL=http://localhost:3000
+    ports:
+      - "80:80"
+    networks:
+      - frontend
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
+```
+
+**Environment Variables (.env):**
+```bash
+# .env file
+DB_PASSWORD=secure_password_here
+REDIS_PASSWORD=redis_secure_pass
+JWT_SECRET=your_jwt_secret
+```
+
+**Docker Compose Commands:**
+```bash
+# Start all services
+docker-compose up
+docker-compose up -d  # Detached mode
+
+# Start specific service
+docker-compose up -d backend
+
+# Build services
+docker-compose build
+docker-compose build --no-cache  # Rebuild without cache
+
+# Build and start
+docker-compose up --build
+
+# View logs
+docker-compose logs
+docker-compose logs -f  # Follow
+docker-compose logs -f backend  # Specific service
+docker-compose logs --tail=100  # Last 100 lines
+
+# List containers
+docker-compose ps
+
+# Execute command in service
+docker-compose exec backend bash
+docker-compose exec backend npm test
+
+# Run one-off command
+docker-compose run backend npm run migrate
+
+# Stop services
+docker-compose stop
+
+# Start stopped services
+docker-compose start
+
+# Restart services
+docker-compose restart
+docker-compose restart backend
+
+# Stop and remove containers
+docker-compose down
+
+# Stop and remove everything (including volumes)
+docker-compose down -v
+
+# Scale services
+docker-compose up -d --scale backend=3
+
+# View service configuration
+docker-compose config
+
+# Pull latest images
+docker-compose pull
+
+# Push images to registry
+docker-compose push
+```
+
+**Complete Production Example:**
+```yaml
+# docker-compose.prod.yml
+version: '3.8'
+
+x-logging:  # Reusable logging configuration
+  &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  postgres:
+    image: postgres:14-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD}
+      --appendonly yes
+      --appendfsync everysec
+    volumes:
+      - redis-data:/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    logging: *default-logging
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: production
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/logs:/app/logs
+    networks:
+      - backend
+      - frontend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging: *default-logging
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_API_URL: https://api.example.com
+    restart: always
+    depends_on:
+      - backend
+    networks:
+      - frontend
+    logging: *default-logging
+
+  nginx:
+    image: nginx:alpine
+    restart: always
+    depends_on:
+      - frontend
+      - backend
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./frontend/build:/usr/share/nginx/html:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - frontend
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging: *default-logging
+
+volumes:
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
+```
+
+This comprehensive Docker guide continues in the next section with Kubernetes...
+
+---
+
+**Continue to Section 8: Kubernetes →**
